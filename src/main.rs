@@ -1,10 +1,28 @@
 mod balances;
 mod system;
 
+mod types {
+    pub type Account = String;
+    pub type Balance = u128;
+    pub type BlockNumber = u32;
+    pub type Nonce = u32;
+}
+
+impl system::Config for RunTime {
+    type Account = types::Account;
+    type BlockNumber = types::BlockNumber;
+    type Nonce = types::Nonce;
+}
+
+
+impl balances::Config for RunTime {
+    type Balance = types::Balance;
+}
+
 #[derive(Debug)]
 pub struct RunTime {
-    system: system::Pallet,
-    balances: balances::Pallet,
+    system: system::Pallet<RunTime>,
+    balances: balances::Pallet<RunTime>,
 }
 
 impl RunTime {
@@ -67,5 +85,5 @@ fn main() {
 
     println!("Program Running...");
 
-    println!("{:#?}",runtime);
+    println!("{:#?}", runtime);
 }

@@ -1,14 +1,19 @@
 use std::collections::BTreeMap;
 
-type Account = String;
-type Balance = u128;
+use num::{CheckedAdd, CheckedSub, Zero};
 
-#[derive(Debug)]
-pub struct Pallet {
-    balances: BTreeMap<Account, Balance>,
+use crate::system;
+
+pub trait Config: system::Config {
+    type Balance: Ord + Zero + CheckedAdd + CheckedSub + Copy;
 }
 
-impl Pallet {
+#[derive(Debug)]
+pub struct Pallet<T: Config> {
+    balances: BTreeMap<T::Account, T::Balance>,
+}
+
+impl<T: Config> Pallet<T> {
     pub fn new() -> Self {
         Self {
             balances: BTreeMap::new(),
@@ -16,32 +21,34 @@ impl Pallet {
     }
 
     // Sets the account balance to amount
-    pub fn set_balance(&mut self, account: &Account, amount: Balance) {
+    pub fn set_balance(&mut self, account: &T::Account, amount: T::Balance) {
         self.balances.insert(account.clone(), amount);
     }
 
     // Gets the account balance
     // return zero if no balance is there
-    pub fn get_balance(&self, account: &Account) -> Balance {
-        *self.balances.get(account).unwrap_or(&0)
+    pub fn get_balance(&self, account: &T::Account) -> T::Balance {
+        *self.balances.get(account).unwrap_or(&T::Balance::zero())
     }
 
     // transfers the amount from 'from' account to 'to' account
     pub fn transfer(
         &mut self,
-        from: &Account,
-        to: &Account,
-        amount: Balance,
+        from: &T::Account,
+        to: &T::Account,
+        amount: T::Balance,
     ) -> Result<(), &'static str> {
         let from_balance = self.get_balance(from);
 
         let to_balance = self.get_balance(to);
 
-        let new_from_balance = from_balance
-            .checked_sub(amount)
-            .ok_or("Insufficient Balance")?;
+        if from_balance < amount {
+            return Err("Insufficient Balance");
+        }
 
-        let new_to_balance = to_balance.checked_add(amount).ok_or("Balance Overflow")?;
+        let new_from_balance = from_balance - amount;
+
+        let new_to_balance = to_balance.checked_add(&amount).ok_or("Balance Overflow")?;
 
         self.set_balance(from, new_from_balance);
 
@@ -55,10 +62,23 @@ impl Pallet {
 mod test {
     use std::u128;
 
+    use crate::system;
+
+    struct TestConfig;
+
+    impl system::Config for TestConfig {
+        type Account = String;
+        type BlockNumber = u32;
+        type Nonce = u32;
+    }
+
+    impl super::Config for TestConfig {
+        type Balance = u128;
+    }
 
     #[test]
     fn init_balances() {
-        let mut balances = super::Pallet::new();
+        let mut balances:super::Pallet<TestConfig> = super::Pallet::new();
 
         let account = String::from("alice");
 
@@ -70,7 +90,7 @@ mod test {
 
     #[test]
     fn check_transfer() {
-        let mut balances = super::Pallet::new();
+        let mut balances:super::Pallet<TestConfig> = super::Pallet::new();
 
         let account1 = String::from("alice");
 
@@ -91,7 +111,7 @@ mod test {
 
     #[test]
     fn insufficient_balance_transfer() {
-        let mut balances = super::Pallet::new();
+        let mut balances:super::Pallet<TestConfig> = super::Pallet::new();
 
         let account1 = String::from("alice");
 
@@ -114,7 +134,7 @@ mod test {
 
     #[test]
     fn overflow_balance_transfer() {
-        let mut balances = super::Pallet::new();
+        let mut balances:super::Pallet<TestConfig> = super::Pallet::new();
 
         let account1 = String::from("alice");
 
@@ -127,7 +147,6 @@ mod test {
         balances.set_balance(&account1, 100);
 
         balances.set_balance(&account2, u128::MAX);
-
 
         let result = balances.transfer(&account1, &account2, 10);
 
