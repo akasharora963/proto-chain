@@ -58,6 +58,24 @@ impl<T: Config> Pallet<T> {
     }
 }
 
+pub enum Call<T: Config> {
+    Transfer{to: T::Account,amount: T::Balance}, 
+}
+
+impl <T:Config> crate::support::Dispatch for Pallet<T> {
+    type Caller = T::Account;
+    type Call = Call<T>;
+
+    fn dispatch(&mut self, caller: Self::Caller, call: Self::Call) -> crate::support::DispatchResult {
+        match call {
+            Call::Transfer { to, amount } => {
+                self.transfer(&caller, &to, amount)?
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::u128;
