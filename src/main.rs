@@ -1,6 +1,7 @@
 use support::Dispatch;
 
 mod balances;
+mod proof;
 mod support;
 mod system;
 
@@ -11,6 +12,7 @@ mod types {
     pub type Balance = u128;
     pub type BlockNumber = u32;
     pub type Nonce = u32;
+    pub type Content = String;
     pub type Extrinsic = support::Extrinsic<Account, crate::RunTimeCall>;
     pub type Header = support::Header<BlockNumber>;
     pub type Block = support::Block<Header, Extrinsic>;
@@ -18,6 +20,7 @@ mod types {
 
 pub enum RunTimeCall {
     Balances(balances::Call<RunTime>),
+    ProofOfExistence(proof::Call<RunTime>),
 }
 
 impl system::Config for RunTime {
@@ -28,6 +31,10 @@ impl system::Config for RunTime {
 
 impl balances::Config for RunTime {
     type Balance = types::Balance;
+}
+
+impl proof::Config for RunTime {
+    type Content = types::Content;
 }
 
 impl Dispatch for RunTime {
@@ -47,6 +54,9 @@ impl Dispatch for RunTime {
             RunTimeCall::Balances(call) => {
                 self.balances.dispatch(caller, call)?;
             }
+            RunTimeCall::ProofOfExistence(call) => {
+                self.proof_of_existence.dispatch(caller, call)?;
+            }
         }
         Ok(())
     }
@@ -56,6 +66,7 @@ impl Dispatch for RunTime {
 pub struct RunTime {
     system: system::Pallet<RunTime>,
     balances: balances::Pallet<RunTime>,
+    proof_of_existence: proof::Pallet<RunTime>,
 }
 
 impl RunTime {
@@ -63,6 +74,7 @@ impl RunTime {
         Self {
             system: system::Pallet::new(),
             balances: balances::Pallet::new(),
+            proof_of_existence: proof::Pallet::new(),
         }
     }
 
@@ -97,6 +109,11 @@ fn main() {
 
     let account3 = String::from("charlie");
 
+    let content1 = String::from("CEO");
+
+    let content2 = String::from("CMO");
+
+
     runtime.balances.set_balance(&account1, 200);
 
     let block_1 = types::Block {
@@ -120,6 +137,23 @@ fn main() {
     };
 
     runtime.execute_block(block_1).expect("Invalid Block");
+
+    let block_2 = types::Block {
+        header: support::Header { block_number: 2 },
+        extrinsics: vec![
+            support::Extrinsic {
+                caller: account1.clone(),
+                call: RunTimeCall::ProofOfExistence(proof::Call::CreateClaim { claim: content1 }),
+            },
+            support::Extrinsic {
+                caller: account2.clone(),
+                call: RunTimeCall::ProofOfExistence(proof::Call::CreateClaim { claim: content2 }),
+            }
+        ],
+    };
+
+    runtime.execute_block(block_2).expect("Invalid Block");
+
 
     // let _ = runtime
     //     .system
