@@ -10,6 +10,7 @@ pub trait Config: system::Config {
 
 #[derive(Debug)]
 pub struct Pallet<T: Config> {
+    // mapping to store account balances
     balances: BTreeMap<T::Account, T::Balance>,
 }
 
@@ -59,6 +60,7 @@ impl<T: Config> Pallet<T> {
 }
 
 pub enum Call<T: Config> {
+    // call representation
     Transfer{to: T::Account,amount: T::Balance}, 
 }
 
@@ -66,6 +68,8 @@ impl <T:Config> crate::support::Dispatch for Pallet<T> {
     type Caller = T::Account;
     type Call = Call<T>;
 
+
+    // routing the transfer call
     fn dispatch(&mut self, caller: Self::Caller, call: Self::Call) -> crate::support::DispatchResult {
         match call {
             Call::Transfer { to, amount } => {
